@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',
     'django_filters',
+    'storages',
     'core',
 ]
 
@@ -65,6 +66,28 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'cedric_admin.wsgi.application'
+
+# AWS S3 Storage Configuration
+if config('USE_S3', default=False, cast=bool):
+    # S3 Storage
+    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+    STATICFILES_STORAGE = 'storages.backends.s3boto3.S3StaticStorage'
+    
+    AWS_ACCESS_KEY_ID = config('AWS_ACCESS_KEY_ID', default='')
+    AWS_SECRET_ACCESS_KEY = config('AWS_SECRET_ACCESS_KEY', default='')
+    AWS_STORAGE_BUCKET_NAME = config('AWS_STORAGE_BUCKET_NAME', default='')
+    AWS_S3_REGION_NAME = config('AWS_S3_REGION_NAME', default='us-east-1')
+    AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
+    AWS_LOCATION = 'media'
+    AWS_QUERYSTRING_AUTH = False  # Make URLs public
+    
+    # Media and Static URLs
+    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/'
+    STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/static/'
+else:
+    # Local file storage (development)
+    MEDIA_URL = '/media/'
+    STATIC_URL = '/static/'
 
 # Database - Neon PostgreSQL with connection pooling
 DATABASE_URL = config('DATABASE_URL', default=None)
@@ -114,14 +137,12 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# Static files
-STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
-
-# Media files
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+# Static files - configured in S3 block above
+# STATIC_URL, MEDIA_URL configured conditionally based on USE_S3
+if not config('USE_S3', default=False, cast=bool):
+    STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+    STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
+    MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
