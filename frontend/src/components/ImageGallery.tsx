@@ -45,13 +45,15 @@ export function ImageGallery({
 
   return (
     <div 
-      className="fixed inset-0 bg-black z-50 flex items-center justify-center"
+      className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-0"
       onClick={onClose}
-      onKeyDown={handleKeyDown}
       role="dialog"
       aria-modal="true"
+      tabIndex={-1}
+      onKeyDown={handleKeyDown}
     >
-      <div className="relative w-full h-full flex items-center justify-center">
+      {/* Full-screen gallery container - NO aspect ratio constraint */}
+      <div className="relative w-screen h-screen flex items-center justify-center">
         {/* Close Button */}
         <Button
           variant="ghost"
@@ -89,15 +91,19 @@ export function ImageGallery({
           </Button>
         )}
 
-        {/* Image */}
+        {/* GALLERY IMAGE - FULL SIZE, NO CROPPING */}
         <div 
-          className="w-full h-full flex items-center justify-center p-4"
+          className="relative w-full h-full flex items-center justify-center px-4"
           onClick={(e) => e.stopPropagation()}
         >
           <img
             src={images[currentIndex]}
             alt={`Image ${currentIndex + 1}`}
-            className="max-w-full max-h-full object-contain"
+            className="max-w-[95vw] max-h-[95vh] object-contain"
+            onError={(e) => {
+              console.error('Image failed to load:', images[currentIndex]);
+              (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%23333" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23999" font-size="16"%3EImage not available%3C/text%3E%3C/svg%3E';
+            }}
           />
         </div>
 
@@ -116,10 +122,10 @@ export function ImageGallery({
           </Button>
         )}
 
-        {/* Thumbnail Navigation */}
+        {/* Thumbnail Navigation - SMALL PREVIEW ONLY */}
         {images.length > 1 && (
           <div 
-            className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50 flex gap-2 bg-black/50 p-3 rounded-lg max-w-[90vw] overflow-x-auto"
+            className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50 flex gap-2 bg-black/70 p-3 rounded-lg max-w-[90vw] overflow-x-auto"
             onClick={(e) => e.stopPropagation()}
           >
             {images.map((image, index) => (
@@ -127,10 +133,10 @@ export function ImageGallery({
                 key={index}
                 onClick={() => setCurrentIndex(index)}
                 className={cn(
-                  'relative w-16 h-16 rounded-md overflow-hidden flex-shrink-0 transition-all',
+                  'relative w-16 h-16 rounded-md overflow-hidden flex-shrink-0 transition-all border-2',
                   index === currentIndex
-                    ? 'ring-2 ring-primary opacity-100'
-                    : 'opacity-50 hover:opacity-75'
+                    ? 'border-primary opacity-100'
+                    : 'border-transparent opacity-50 hover:opacity-75'
                 )}
               >
                 <img
