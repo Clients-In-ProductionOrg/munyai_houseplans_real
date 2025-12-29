@@ -3,6 +3,7 @@ Core app models - Define your application models here
 """
 from django.db import models
 from django.contrib.auth.models import User
+from .storage import get_storage
 
 
 class SiteSettings(models.Model):
@@ -68,7 +69,7 @@ class HousePlan(models.Model):
     square_feet = models.IntegerField()
     width = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True, help_text="Width in meters")
     depth = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True, help_text="Depth in meters")
-    image = models.ImageField(upload_to='plans/', blank=True, null=True, help_text="Primary/thumbnail image")
+    image = models.ImageField(upload_to='plans/', blank=True, null=True, storage=get_storage, help_text="Primary/thumbnail image")
     video_url = models.URLField(blank=True, null=True, help_text="YouTube video URL")
     display_on = models.CharField(max_length=20, choices=DISPLAY_CHOICES, default='house-plans', help_text="Choose where to display this house plan")
     is_popular = models.BooleanField(default=False, help_text="Show in 'Popular House Plans' section")
@@ -90,7 +91,7 @@ class HousePlan(models.Model):
 class HousePlanImage(models.Model):
     """Model for multiple images per house plan"""
     house_plan = models.ForeignKey(HousePlan, on_delete=models.CASCADE, related_name='plan_images')
-    image = models.ImageField(upload_to='plans/')
+    image = models.ImageField(upload_to='plans/', storage=get_storage)
     title = models.CharField(max_length=200, blank=True, null=True, help_text="Image title or description")
     order = models.IntegerField(default=0, help_text="Order to display images")
     
@@ -174,7 +175,7 @@ class BuiltHome(models.Model):
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True, null=True)
     location = models.CharField(max_length=300)
-    image = models.ImageField(upload_to='homes/', blank=True, null=True)
+    image = models.ImageField(upload_to='homes/', blank=True, null=True, storage=get_storage)
     completion_date = models.DateField(blank=True, null=True)
     is_featured = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)

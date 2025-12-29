@@ -19,6 +19,11 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-your-secret-key-chang
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=True, cast=bool)
 
+# Debug S3 configuration on startup
+_use_s3_env = os.getenv('USE_S3', '').lower() in ['true', '1', 'yes']
+_has_aws_creds = bool(os.getenv('AWS_ACCESS_KEY_ID') and os.getenv('AWS_SECRET_ACCESS_KEY') and os.getenv('AWS_STORAGE_BUCKET_NAME'))
+print(f"[DJANGO STARTUP] USE_S3 env={_use_s3_env}, Has AWS creds={_has_aws_creds}")
+
 ALLOWED_HOSTS = config('ALLOWED_HOSTS').split(',')
 
 # Application definition
@@ -67,33 +72,42 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'cedric_admin.wsgi.application'
 
-# AWS S3 Storage Configuration
-if config('USE_S3', default=False, cast=bool):
-    # S3 Storage
+# AWS S3 Storage Configuration - REQUIRED FOR FILE UPLOADS
+AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
+AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')
+AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME', 'eu-north-1')
+
+# Force S3 if env var says so, otherwise check credentials
+USE_S3_ENV = os.getenv('USE_S3', '').lower() in ['true', '1', 'yes']
+USE_S3 = USE_S3_ENV or bool(AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY and AWS_STORAGE_BUCKET_NAME)
+
+print(f"[DJANGO STARTUP] USE_S3={USE_S3}, Storage will use: {'S3Boto3Storage' if USE_S3 else 'FileSystemStorage'}")
+
+if USE_S3:
+    # S3 Storage - Files will be uploaded to AWS S3
     DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-    STATICFILES_STORAGE = 'storages.backends.s3boto3.S3StaticStorage'
     
-    AWS_ACCESS_KEY_ID = config('AWS_ACCESS_KEY_ID', default='')
-    AWS_SECRET_ACCESS_KEY = config('AWS_SECRET_ACCESS_KEY', default='')
-    AWS_STORAGE_BUCKET_NAME = config('AWS_STORAGE_BUCKET_NAME', default='')
-    AWS_S3_REGION_NAME = config('AWS_S3_REGION_NAME', default='us-east-1')
+    # Public access settings
+    AWS_QUERYSTRING_AUTH = False  # Make URLs public (no signature needed)
+    AWS_DEFAULT_ACL = None  # Use bucket default
     
-    # S3 domain with region for non-us-east-1 regions
+    # Construct S3 URL based on region
     if AWS_S3_REGION_NAME == 'us-east-1':
         AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
     else:
         AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com'
     
-    AWS_LOCATION = 'media'
-    AWS_QUERYSTRING_AUTH = False  # Make URLs public
-    
-    # Media and Static URLs
-    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/'
+    # Media URLs point to S3
+    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
     STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/static/'
 else:
-    # Local file storage (development)
+    # Local file storage (development only)
+    DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
     MEDIA_URL = '/media/'
+    MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
     STATIC_URL = '/static/'
+    STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # Database - Neon PostgreSQL with connection pooling
 DATABASE_URL = config('DATABASE_URL', default=None)
@@ -145,7 +159,7 @@ USE_TZ = True
 
 # Static files - configured in S3 block above
 # STATIC_URL, MEDIA_URL configured conditionally based on USE_S3
-if not config('USE_S3', default=False, cast=bool):
+if not USE_S3:
     STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
     STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
     MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
